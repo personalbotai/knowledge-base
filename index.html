@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personal Knowledge Base</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/lunr@2.3.9/lunr.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Personal Knowledge Base</h1>
+            <input type="text" id="searchInput" placeholder="Search knowledge...">
+        </header>
+        
+        <main>
+            <section class="notes-section">
+                <h2>My Notes</h2>
+                <div class="notes-grid" id="notesGrid">
+                    <div class="note-card">
+                        <h3>Welcome to Your Knowledge Base</h3>
+                        <p>This is your personal space for storing and organizing knowledge. Add notes, search through them, and keep your thoughts organized.</p>
+                        <button class="edit-btn">Edit</button>
+                    </div>
+                </div>
+            </section>
+            
+            <section class="add-section">
+                <h2>Add New Note</h2>
+                <form id="addNoteForm">
+                    <input type="text" id="noteTitle" placeholder="Note title" required>
+                    <textarea id="noteContent" placeholder="Note content" rows="5" required></textarea>
+                    <button type="submit">Add Note</button>
+                </form>
+            </section>
+        </main>
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>
