@@ -2,7 +2,7 @@
   "name": "Simple Knowledge Base",
   "short_name": "KnowledgeBase",
   "description": "A simple, offline-capable knowledge base with markdown support",
-  "start_url": "/knowledge-base/",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#4f46e5",

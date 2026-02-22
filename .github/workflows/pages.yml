@@ -24,10 +24,8 @@ jobs:
     - name: Setup Pages
       uses: actions/configure-pages@v4
 
-    - name: Build with npm
-      run: |
-        npm install
-        npm run build
+    # This is a static site - no build step needed
+    # All files are ready to deploy as-is
 
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
