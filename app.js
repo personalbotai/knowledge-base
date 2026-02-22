@@ -2,11 +2,12 @@ const knowledgeBase = {
     notes: [],
     index: null,
     darkMode: false,
-    
+    currentEditId: null,
+
     init() {
         this.loadDarkMode();
         this.notes = this.loadNotes();
-        this._memoryNotes = this.notes; // backup in memory
+        this._memoryNotes = this.notes;
         this.index = null;
         this._rebuildIndexTimeout = null;
         this.setupEventListeners();
@@ -15,131 +16,111 @@ const knowledgeBase = {
         this.setupKeyboardShortcuts();
         this.registerServiceWorker();
         this.setupInstallPrompt();
-        // Initial index build with debounce
         this.debouncedRebuildIndex();
     },
-    
+
     setupInstallPrompt() {
         let deferredPrompt;
-        
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            
-            // Show install button or hint
-            const existingHint = document.querySelector('.install-hint');
-            if (existingHint) existingHint.remove();
-            
-            const hint = document.createElement('div');
-            hint.className = 'install-hint';
-            hint.innerHTML = `
-                <button id="installBtn" class="mt-4 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm font-semibold">
-                    📱 Install App
-                </button>
-            `;
-            document.querySelector('header').appendChild(hint);
-            
-            document.getElementById('installBtn').addEventListener('click', async () => {
-                if (deferredPrompt) {
-                    deferredPrompt.prompt();
-                    const { outcome } = await deferredPrompt.userChoice;
-                    console.log('User response:', outcome);
-                    deferredPrompt = null;
-                    hint.remove();
-                }
-            });
         });
-        
-        // Hide install hint if app is already installed
         window.addEventListener('appinstalled', () => {
             console.log('PWA was installed');
-            const hint = document.querySelector('.install-hint');
-            if (hint) hint.remove();
         });
     },
-    
+
     registerServiceWorker() {
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js')
                     .then(reg => {
                         console.log('Service Worker registered:', reg);
-                        // Check for updates every 6 hours
-                        setInterval(() => {
-                            reg.update();
-                        }, 6 * 60 * 60 * 1000);
+                        setInterval(() => reg.update(), 6 * 60 * 60 * 1000);
                     })
                     .catch(err => console.error('Service Worker registration failed:', err));
             });
         }
     },
-    
-    setupEventListeners() {
-        const searchInput = document.getElementById('searchInput');
-        const addNoteForm = document.getElementById('addNoteForm');
-        const darkModeToggle = document.getElementById('darkModeToggle');
-        const exportBtn = document.getElementById('exportBtn');
-        const importBtn = document.getElementById('importBtn');
-        const importFileInput = document.getElementById('importFileInput');
-        const tagFilter = document.getElementById('tagFilter');
 
-        // Search with debounce
-        let searchTimeout;
-        searchInput.addEventListener('input', (e) => {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
+    setupEventListeners() {
+        // Search
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            clearTimeout(this._searchTimeout);
+            this._searchTimeout = setTimeout(() => {
                 this.searchNotes(e.target.value);
             }, 200);
         });
 
-        // Add note
-        addNoteForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.addNote();
+        // Quick add button (header)
+        document.getElementById('quickAddBtn').addEventListener('click', () => {
+            this.openModal();
         });
 
-        // Dark mode toggle
-        darkModeToggle.addEventListener('click', () => {
-            this.toggleDarkMode();
+        // Empty state add button
+        document.getElementById('emptyAddBtn').addEventListener('click', () => {
+            this.openModal();
         });
 
-        // Export
-        exportBtn.addEventListener('click', () => {
-            this.showExportMenu();
+        // Import button
+        document.getElementById('importBtn').addEventListener('click', () => {
+            document.getElementById('importFileInput').click();
         });
-
-        // Import
-        importBtn.addEventListener('click', () => {
-            importFileInput.click();
-        });
-
-        importFileInput.addEventListener('change', (e) => {
+        document.getElementById('importFileInput').addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
                 this.importNotes(e.target.files[0]);
             }
         });
 
+        // Dark mode toggle
+        document.getElementById('darkModeToggle').addEventListener('click', () => {
+            this.toggleDarkMode();
+        });
+
+        // Modal events
+        document.getElementById('closeModal').addEventListener('click', () => {
+            this.closeModal();
+        });
+        document.getElementById('cancelModal').addEventListener('click', () => {
+            this.closeModal();
+        });
+        document.getElementById('saveNote').addEventListener('click', () => {
+            this.saveNoteFromModal();
+        });
+
+        // Close modal on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.closeModal();
+            }
+        });
+
         // Tag filter
-        tagFilter.addEventListener('change', (e) => {
+        document.getElementById('tagFilter').addEventListener('change', (e) => {
             this.filterByTag(e.target.value);
         });
+
+        // Character count
+        const textarea = document.getElementById('modalNoteContent');
+        textarea.addEventListener('input', (e) => {
+            const count = e.target.value.length;
+            document.getElementById('charCount').textContent = `${count} characters`;
+        });
     },
-    
+
     setupKeyboardShortcuts() {
         document.addEventListener('keydown', (e) => {
-            // Ctrl+K for search focus
             if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
                 e.preventDefault();
                 document.getElementById('searchInput').focus();
             }
-            // Ctrl+N for new note focus
             if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
                 e.preventDefault();
-                document.getElementById('noteTitle').focus();
+                this.openModal();
             }
         });
     },
-    
+
     loadDarkMode() {
         const saved = localStorage.getItem('darkMode');
         if (saved === 'true' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -148,14 +129,14 @@ const knowledgeBase = {
             this.updateDarkModeIcon();
         }
     },
-    
+
     toggleDarkMode() {
         this.darkMode = !this.darkMode;
         document.documentElement.classList.toggle('dark');
         localStorage.setItem('darkMode', this.darkMode);
         this.updateDarkModeIcon();
     },
-    
+
     updateDarkModeIcon() {
         const moonIcon = document.getElementById('moonIcon');
         const sunIcon = document.getElementById('sunIcon');
@@ -167,47 +148,42 @@ const knowledgeBase = {
             sunIcon.classList.add('hidden');
         }
     },
-    
+
     loadNotes() {
         try {
             const stored = localStorage.getItem('knowledgeBaseNotes');
             return stored ? JSON.parse(stored) : [];
         } catch (e) {
             console.warn('localStorage unavailable, using memory storage:', e);
-            // Return from memory if available, otherwise empty array
             return this._memoryNotes || [];
         }
     },
-    
+
     saveNotes() {
         try {
             localStorage.setItem('knowledgeBaseNotes', JSON.stringify(this.notes));
-            this._memoryNotes = this.notes; // backup in memory
+            this._memoryNotes = this.notes;
         } catch (e) {
             console.warn('localStorage write failed, storing in memory only:', e);
             this._memoryNotes = this.notes;
         }
     },
-    
+
     debouncedRebuildIndex() {
-        if (this._rebuildIndexTimeout) {
-            clearTimeout(this._rebuildIndexTimeout);
-        }
+        if (this._rebuildIndexTimeout) clearTimeout(this._rebuildIndexTimeout);
         this._rebuildIndexTimeout = setTimeout(() => {
             this.index = this.buildIndex();
-        }, 500); // Wait 500ms after last change
+        }, 500);
     },
-    
+
     buildIndex() {
         if (this.notes.length === 0) return null;
-        
         try {
             const idx = lunr(function () {
                 this.ref('id');
                 this.field('title');
                 this.field('content');
                 this.field('tags');
-                
                 this.notes.forEach(note => this.add(note));
             });
             return idx;
@@ -216,13 +192,47 @@ const knowledgeBase = {
             return null;
         }
     },
-    
-    addNote() {
-        const title = document.getElementById('noteTitle').value.trim();
-        const content = document.getElementById('noteContent').value.trim();
-        const tagsInput = document.getElementById('noteTags').value.trim();
-        
-        // Validation
+
+    openModal(note = null) {
+        const modal = document.getElementById('noteModal');
+        const titleEl = document.getElementById('modalTitle');
+        const titleInput = document.getElementById('modalNoteTitle');
+        const tagsInput = document.getElementById('modalNoteTags');
+        const contentInput = document.getElementById('modalNoteContent');
+        const charCount = document.getElementById('charCount');
+
+        if (note) {
+            titleEl.textContent = 'Edit Note';
+            titleInput.value = note.title;
+            tagsInput.value = note.tags.join(', ');
+            contentInput.value = note.content.replace(/<a[^>]*data-note-title[^>]*>([^<]*)<\/a>/g, '[[$1]]');
+            this.currentEditId = note.id;
+        } else {
+            titleEl.textContent = 'New Note';
+            titleInput.value = '';
+            tagsInput.value = '';
+            contentInput.value = '';
+            this.currentEditId = null;
+        }
+
+        charCount.textContent = `${contentInput.value.length} characters`;
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        titleInput.focus();
+    },
+
+    closeModal() {
+        const modal = document.getElementById('noteModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        this.currentEditId = null;
+    },
+
+    saveNoteFromModal() {
+        const title = document.getElementById('modalNoteTitle').value.trim();
+        const content = document.getElementById('modalNoteContent').value.trim();
+        const tagsInput = document.getElementById('modalNoteTags').value.trim();
+
         if (!title) {
             this.showMessage('Please enter a title', 'error');
             return;
@@ -239,120 +249,120 @@ const knowledgeBase = {
             this.showMessage('Content is too long (max 10000 characters)', 'error');
             return;
         }
-        
-        const tags = tagsInput ? tagsInput.split(',').map(t => t.trim().toLowerCase()).filter(t => t) : [];
 
-        // Process note linking: [[note title]] -> link
+        const tags = tagsInput ? tagsInput.split(',').map(t => t.trim().toLowerCase()).filter(t => t) : [];
         const processedContent = this.processNoteLinking(content);
 
-        const newNote = {
-            id: Date.now().toString(),
-            title: title,
-            content: processedContent,
-            tags: tags,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        };
+        if (this.currentEditId) {
+            const note = this.notes.find(n => n.id === this.currentEditId);
+            if (note) {
+                note.title = title;
+                note.content = processedContent;
+                note.tags = tags;
+                note.updatedAt = new Date().toISOString();
+                this.showMessage('Note updated successfully!');
+            }
+        } else {
+            const newNote = {
+                id: Date.now().toString(),
+                title: title,
+                content: processedContent,
+                tags: tags,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            };
+            this.notes.unshift(newNote);
+            this.showMessage('Note added successfully!');
+        }
 
-        this.notes.unshift(newNote);
         this.saveNotes();
         this.debouncedRebuildIndex();
         this.renderNotes();
         this.updateTagFilter();
-        
-        document.getElementById('addNoteForm').reset();
-        this.showMessage('Note added successfully!');
+        this.closeModal();
     },
-    
+
     processNoteLinking(content) {
-        // Convert [[Note Title]] to clickable link that searches for that note
         return content.replace(/\[\[([^\]]+)\]\]/g, (match, noteTitle) => {
             return `<a href="#" class="note-link text-indigo-600 dark:text-indigo-400 hover:underline" data-note-title="${this.escapeHtml(noteTitle)}">${this.escapeHtml(noteTitle)}</a>`;
         });
     },
-    
+
     renderNotes(notes = this.notes) {
         const notesGrid = document.getElementById('notesGrid');
-        
+        const emptyState = document.getElementById('emptyState');
+
         if (notes.length === 0) {
-            notesGrid.innerHTML = `
-                <div class="text-center py-8 text-gray-500 dark:text-gray-400">
-                    <h3 class="text-xl font-semibold mb-2">No notes yet</h3>
-                    <p class="text-gray-600 dark:text-gray-500">Start adding your knowledge by creating your first note!</p>
-                </div>
-            `;
+            notesGrid.classList.add('hidden');
+            emptyState.classList.remove('hidden');
             return;
         }
 
+        notesGrid.classList.remove('hidden');
+        emptyState.classList.add('hidden');
+
         notesGrid.innerHTML = notes.map(note => `
-            <div class="note-card bg-indigo-50 dark:bg-gray-700 border-l-4 border-indigo-500 p-4 rounded-lg hover:shadow-md transition-shadow" data-id="${note.id}">
-                <h3 class="text-lg font-semibold text-indigo-900 dark:text-indigo-100 mb-2">${this.escapeHtml(note.title)}</h3>
-                <div class="note-content text-gray-600 dark:text-gray-300 mb-3">${this.renderMarkdown(note.content)}</div>
+            <div class="note-card" data-id="${note.id}">
+                <h3>${this.escapeHtml(note.title)}</h3>
+                <div class="note-content">${this.renderMarkdown(note.content)}</div>
                 ${note.tags.length ? `
-                    <div class="note-tags flex flex-wrap gap-2 mb-2">
+                    <div class="note-tags">
                         ${note.tags.map(tag => `
-                            <span class="px-2 py-1 bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded text-xs">${this.escapeHtml(tag)}</span>
+                            <span class="note-tag">${this.escapeHtml(tag)}</span>
                         `).join('')}
                     </div>
                 ` : ''}
-                <div class="flex gap-2">
-                    <button class="edit-btn bg-indigo-600 dark:bg-indigo-500 text-white px-3 py-1 rounded hover:bg-indigo-700 dark:hover:bg-indigo-600 text-sm" onclick="knowledgeBase.editNote('${note.id}')">Edit</button>
-                    <button class="delete-btn bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 text-sm" onclick="knowledgeBase.deleteNote('${note.id}')">Delete</button>
+                <div class="flex gap-2 mt-4">
+                    <button class="edit-btn px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors" onclick="knowledgeBase.editNote('${note.id}')">Edit</button>
+                    <button class="delete-btn px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors" onclick="knowledgeBase.deleteNote('${note.id}')">Delete</button>
                 </div>
-                <div class="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                    ${new Date(note.updatedAt).toLocaleDateString()}
+                <div class="note-date mt-2">
+                    ${new Date(note.updatedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
                 </div>
             </div>
         `).join('');
 
-        // Add event listeners for note links
         notesGrid.querySelectorAll('.note-link').forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
                 const title = e.target.dataset.noteTitle;
-                this.searchNotes(title);
                 document.getElementById('searchInput').value = title;
+                this.searchNotes(title);
             });
         });
     },
-    
+
     renderMarkdown(content) {
-        // First, process note linking, then parse markdown
         const withLinks = this.processNoteLinking(content);
         const rawHtml = marked.parse(withLinks);
         return DOMPurify.sanitize(rawHtml);
     },
-    
+
     searchNotes(query) {
         if (!query) {
             this.renderNotes();
-            this.tagFilter.value = '';
+            document.getElementById('tagFilter').value = '';
             return;
         }
 
-        // Check if query matches a tag
-        const tagMatch = query.toLowerCase().startsWith('tag:');
-        if (tagMatch) {
+        if (query.toLowerCase().startsWith('tag:')) {
             const tag = query.substring(4).trim();
             this.filterByTag(tag);
             return;
         }
 
-        // First, filter by tag if tag filter is active
         let filteredNotes = this.notes;
         const activeTag = document.getElementById('tagFilter').value;
         if (activeTag) {
             filteredNotes = this.notes.filter(note => note.tags.includes(activeTag));
         }
 
-        // Then search with Lunr
         if (this.index) {
             const results = this.index.search(query).map(result => 
                 filteredNotes.find(note => note.id === result.ref)
             ).filter(Boolean);
             this.renderNotes(results);
         } else {
-            // Fallback to simple text search
             const lowerQuery = query.toLowerCase();
             const results = filteredNotes.filter(note => 
                 note.title.toLowerCase().includes(lowerQuery) || 
@@ -361,10 +371,10 @@ const knowledgeBase = {
             this.renderNotes(results);
         }
     },
-    
+
     filterByTag(tag) {
         document.getElementById('tagFilter').value = tag;
-        document.getElementById('searchInput').value = ''; // Reset search input
+        document.getElementById('searchInput').value = '';
         if (!tag) {
             this.renderNotes();
             return;
@@ -372,7 +382,7 @@ const knowledgeBase = {
         const filtered = this.notes.filter(note => note.tags.includes(tag));
         this.renderNotes(filtered);
     },
-    
+
     updateTagFilter() {
         const tagFilter = document.getElementById('tagFilter');
         const allTags = new Set();
@@ -383,46 +393,16 @@ const knowledgeBase = {
                 `<option value="${this.escapeHtml(tag)}">${this.escapeHtml(tag)}</option>`
             ).join('');
     },
-    
+
     editNote(id) {
         const note = this.notes.find(n => n.id === id);
-        if (!note) return;
-
-        const title = prompt('Edit title:', note.title);
-        if (title === null) return;
-        
-        if (title.length > 200) {
-            this.showMessage('Title is too long (max 200 characters)', 'error');
-            return;
+        if (note) {
+            this.openModal(note);
         }
-        
-        const content = prompt('Edit content (Markdown):', note.content);
-        if (content === null) return;
-        
-        if (content.length > 10000) {
-            this.showMessage('Content is too long (max 10000 characters)', 'error');
-            return;
-        }
-        
-        const tagsInput = prompt('Edit tags (comma separated):', note.tags.join(', '));
-        const tags = tagsInput ? tagsInput.split(',').map(t => t.trim().toLowerCase()).filter(t => t) : [];
-
-        note.title = title.trim();
-        note.content = this.processNoteLinking(content.trim());
-        note.tags = tags;
-        note.updatedAt = new Date().toISOString();
-        
-        this.saveNotes();
-        this.debouncedRebuildIndex();
-        this.renderNotes();
-        this.updateTagFilter();
-        
-        this.showMessage('Note updated successfully!');
     },
-    
+
     deleteNote(id) {
         if (!confirm('Are you sure you want to delete this note?')) return;
-        
         this.notes = this.notes.filter(n => n.id !== id);
         this.saveNotes();
         this.index = this.buildIndex();
@@ -430,54 +410,13 @@ const knowledgeBase = {
         this.updateTagFilter();
         this.showMessage('Note deleted!');
     },
-    
-    showExportMenu() {
-        // Create a simple modal dropdown
-        const modal = document.createElement('div');
-        modal.id = 'exportModal';
-        modal.innerHTML = `
-            <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="knowledgeBase.closeExportMenu(event)">
-                <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-xl max-w-sm w-full" onclick="event.stopPropagation()">
-                    <h3 class="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Export Notes</h3>
-                    <div class="space-y-2">
-                        <button id="exportJSON" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded transition-colors">Export as JSON</button>
-                        <button id="exportMarkdown" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded transition-colors">Export as Markdown</button>
-                        <button id="exportPDF" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded transition-colors">Export as PDF (Print)</button>
-                    </div>
-                    <button id="cancelExport" class="mt-4 w-full text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white font-medium py-2 px-4 transition-colors">Cancel</button>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(modal);
-        
-        // Add event listeners
-        document.getElementById('exportJSON').addEventListener('click', () => {
-            this.exportJSON();
-            this.closeExportMenu();
-        });
-        document.getElementById('exportMarkdown').addEventListener('click', () => {
-            this.exportMarkdown();
-            this.closeExportMenu();
-        });
-        document.getElementById('exportPDF').addEventListener('click', () => {
-            this.exportPDF();
-            this.closeExportMenu();
-        });
-        document.getElementById('cancelExport').addEventListener('click', () => this.closeExportMenu());
-    },
-    
-    closeExportMenu(event) {
-        if (event) event.stopPropagation();
-        const modal = document.getElementById('exportModal');
-        if (modal) modal.remove();
-    },
-    
+
     exportJSON() {
         const data = JSON.stringify(this.notes, null, 2);
         this.downloadFile(data, 'knowledge-base.json', 'application/json');
         this.showMessage('Exported as JSON!');
     },
-    
+
     exportMarkdown() {
         const md = this.notes.map(note => {
             const tags = note.tags.length ? `\n**Tags:** ${note.tags.join(', ')}` : '';
@@ -486,18 +425,18 @@ const knowledgeBase = {
         this.downloadFile(md, 'knowledge-base.md', 'text/markdown');
         this.showMessage('Exported as Markdown!');
     },
-    
+
     exportPDF() {
         window.print();
     },
-    
+
     importNotes(file) {
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
                 const content = e.target.result;
                 let importedNotes = [];
-                
+
                 if (file.name.endsWith('.json')) {
                     importedNotes = JSON.parse(content);
                     if (!Array.isArray(importedNotes)) throw new Error('Invalid JSON format');
@@ -506,8 +445,7 @@ const knowledgeBase = {
                 } else {
                     throw new Error('Unsupported file type');
                 }
-                
-                // Validate and process notes
+
                 importedNotes = importedNotes.map(note => ({
                     id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
                     title: note.title || 'Untitled',
@@ -516,11 +454,10 @@ const knowledgeBase = {
                     createdAt: note.createdAt || new Date().toISOString(),
                     updatedAt: new Date().toISOString()
                 }));
-                
+
                 if (confirm(`Import ${importedNotes.length} notes? Existing notes with same title will be skipped.`)) {
                     const existingTitles = new Set(this.notes.map(n => n.title.toLowerCase()));
-                    let imported = 0;
-                    let skipped = 0;
+                    let imported = 0, skipped = 0;
                     
                     importedNotes.forEach(note => {
                         if (!existingTitles.has(note.title.toLowerCase())) {
@@ -530,7 +467,7 @@ const knowledgeBase = {
                             skipped++;
                         }
                     });
-                    
+
                     this.saveNotes();
                     this.index = this.buildIndex();
                     this.renderNotes();
@@ -543,46 +480,34 @@ const knowledgeBase = {
         };
         reader.readAsText(file);
     },
-    
+
     parseMarkdownImport(content) {
-        // More robust markdown parser with support for:
-        // - Headers (# Title)
-        // - YAML frontmatter (optional)
-        // - Tags in various formats: "Tags: tag1, tag2" or "#tag1 #tag2"
         const notes = [];
-        
-        // Try to split by horizontal rules (---) first
         let blocks = content.split(/\n---\n/);
-        
-        // If no horizontal rules, try to split by double newlines
         if (blocks.length === 1) {
             blocks = content.split(/\n\s*\n\s*\n/);
         }
-        
+
         blocks.forEach(block => {
             block = block.trim();
             if (!block) return;
-            
+
             let title = '';
             let body = '';
             let tags = [];
-            
-            // Check for YAML frontmatter
+
             const frontmatterMatch = block.match(/^---\n([\s\S]*?)\n---\n/);
             let contentBody = block;
-            
+
             if (frontmatterMatch) {
                 const frontmatter = frontmatterMatch[1];
                 contentBody = block.substring(frontmatterMatch[0].length);
-                
-                // Parse tags from frontmatter
                 const tagMatch = frontmatter.match(/tags:\s*(.+)/);
                 if (tagMatch) {
-                    tags = tagMatch[1].split(',').map(t => t.trim().toLowerCase()).filter(t => t);
+                    tags = tagMatch[1].split(',').map(t => t.trim().toLowerCase());
                 }
             }
-            
-            // Extract title from first line that starts with #
+
             const lines = contentBody.split('\n');
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i].trim();
@@ -592,8 +517,7 @@ const knowledgeBase = {
                     break;
                 }
             }
-            
-            // If no title found, use first non-empty line as title
+
             if (!title) {
                 const firstLine = lines.find(l => l.trim());
                 if (firstLine) {
@@ -604,34 +528,30 @@ const knowledgeBase = {
                     body = contentBody;
                 }
             }
-            
-            // Extract tags from body if not already found
+
             if (tags.length === 0) {
-                // Look for "Tags: tag1, tag2"
                 const tagLineMatch = body.match(/\*\*Tags:\*\*\s*(.+)/);
                 if (tagLineMatch) {
                     tags = tagLineMatch[1].split(',').map(t => t.trim().toLowerCase());
                     body = body.replace(/\*\*Tags:\*\*\s*.+\n?/, '').trim();
                 }
-                
-                // Look for hashtags in content
                 const hashtagMatches = body.match(/#(\w+)/g);
                 if (hashtagMatches) {
                     const hashtagTags = hashtagMatches.map(t => t.substring(1).toLowerCase());
                     tags = [...new Set([...tags, ...hashtagTags])];
                 }
             }
-            
+
             notes.push({
                 title: title || 'Untitled',
                 content: body || '',
                 tags: tags
             });
         });
-        
+
         return notes;
     },
-    
+
     downloadFile(content, filename, mimeType) {
         const blob = new Blob([content], { type: mimeType });
         const url = URL.createObjectURL(blob);
@@ -643,7 +563,7 @@ const knowledgeBase = {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
     },
-    
+
     showMessage(message, type = 'success') {
         const oldMsg = document.querySelector('.message');
         if (oldMsg) oldMsg.remove();
@@ -651,7 +571,7 @@ const knowledgeBase = {
         const msg = document.createElement('div');
         msg.className = 'message';
         msg.textContent = message;
-        const bgColor = type === 'error' ? '#ef4444' : '#28a745';
+        const bgColor = type === 'error' ? '#ef4444' : '#10b981';
         msg.style.cssText = `
             position: fixed;
             top: 20px;
@@ -666,13 +586,12 @@ const knowledgeBase = {
         `;
 
         document.body.appendChild(msg);
-        
         setTimeout(() => {
             msg.style.opacity = '0';
             setTimeout(() => msg.remove(), 300);
         }, 3000);
     },
-    
+
     escapeHtml(text) {
         const div = document.createElement('div');
         div.textContent = text;
@@ -680,4 +599,6 @@ const knowledgeBase = {
     }
 };
 
-knowledgeBase.init();
+document.addEventListener('DOMContentLoaded', () => {
+    knowledgeBase.init();
+});

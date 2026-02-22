@@ -1,15 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Personal Knowledge Base</title>
     <meta name="description" content="A lightweight personal knowledge base with markdown support, tags, and search.">
-    <link href="https://cdn.tailwindcss.com" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.1/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-    <meta name="theme-color" content="#4f46e5">
+    <meta name="theme-color" content="#0f172a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="KnowledgeBase">
@@ -18,67 +18,153 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
 </head>
-<body class="bg-gradient-to-br from-indigo-50 to-purple-50 min-h-screen transition-colors duration-300">
-    <div class="container mx-auto px-4 py-8">
-        <header class="text-center mb-8">
-            <div class="flex justify-between items-center max-w-4xl mx-auto mb-4">
-                <h1 class="text-4xl font-bold text-indigo-600">Personal Knowledge Base</h1>
-                <div class="flex gap-2">
-                    <button id="darkModeToggle" class="p-2 rounded-lg bg-white shadow hover:bg-gray-100 transition-colors" title="Toggle dark mode">
-                        <svg id="moonIcon" class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
-                        <svg id="sunIcon" class="w-6 h-6 text-yellow-500 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-                    </button>
-                    <button id="exportBtn" class="p-2 rounded-lg bg-white shadow hover:bg-gray-100 transition-colors" title="Export notes">
-                        <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                    </button>
-                    <button id="importBtn" class="p-2 rounded-lg bg-white shadow hover:bg-gray-100 transition-colors" title="Import notes">
-                        <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                    </button>
-                </div>
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100 transition-colors duration-300">
+
+    <!-- Sticky Header -->
+    <header class="sticky top-0 z-50 flex items-center justify-between px-4 py-3 border-b shadow-sm bg-white/90 backdrop-blur-sm border-slate-200 dark:bg-slate-800/90 dark:border-slate-700">
+        <div class="flex items-center gap-4">
+            <label for="sidebarToggle" class="lg:hidden p-2 -ml-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"/>
+                </svg>
+            </label>
+            <a href="index.html" class="text-xl font-bold tracking-tight text-slate-900 dark:text-white">KnowledgeBase</a>
+        </div>
+
+        <form action="#" class="hidden md:block relative w-full max-w-md mx-6">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2">
+                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+            </span>
+            <input type="text" id="searchInput" placeholder="Search knowledge... (Ctrl+K)" class="w-full py-2 pl-10 pr-4 border rounded-lg bg-slate-100 dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all">
+        </form>
+
+        <div class="flex items-center gap-2">
+            <button id="darkModeToggle" class="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" title="Toggle dark mode">
+                <svg id="moonIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+                <svg id="sunIcon" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+            </button>
+            <a href="https://github.com/sipeed/picoclaw" target="_blank" class="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" title="View on GitHub">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+            </a>
+        </div>
+    </header>
+
+    <input type="checkbox" id="sidebarToggle" class="hidden peer">
+
+    <div class="flex relative max-w-8xl mx-auto">
+        <!-- Sidebar Navigation -->
+        <aside class="fixed inset-y-0 left-0 z-40 w-72 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 transform -translate-x-full lg:relative lg:translate-x-0 transition-transform duration-300 peer-checked:translate-x-0 overflow-y-auto pt-20 lg:pt-0">
+            <div class="p-6">
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4">Getting Started</h3>
+                <ul class="space-y-1 mb-8">
+                    <li><a href="#" class="block px-3 py-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-medium">Quick start</a></li>
+                    <li><a href="#" class="block px-3 py-2 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors">How it works</a></li>
+                    <li><a href="#" class="block px-3 py-2 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors">Features</a></li>
+                </ul>
+
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4">Content</h3>
+                <ul class="space-y-1 mb-8">
+                    <li><a href="#" class="block px-3 py-2 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors">Notes</a></li>
+                    <li><a href="#" class="block px-3 py-2 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors">Tags</a></li>
+                    <li><a href="#" class="block px-3 py-2 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors">Search</a></li>
+                </ul>
+
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4">Settings</h3>
+                <ul class="space-y-1">
+                    <li><a href="#" class="block px-3 py-2 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors">Preferences</a></li>
+                    <li><a href="#" class="block px-3 py-2 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors">Import / Export</a></li>
+                    <li><a href="#" class="block px-3 py-2 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors">About</a></li>
+                </ul>
             </div>
-            <input type="text" id="searchInput" placeholder="Search knowledge... (Ctrl+K)" class="w-full max-w-md mx-auto px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-800 dark:border-gray-600 dark:text-white dark:placeholder-gray-400">
-            <div class="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                Shortcuts: <kbd class="px-2 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-xs">Ctrl+K</kbd> Search, <kbd class="px-2 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-xs">Ctrl+N</kbd> New Note
-            </div>
-        </header>
-        
-        <main class="grid lg:grid-cols-3 gap-8">
-            <section class="lg:col-span-2">
-                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 transition-colors">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-2xl font-bold text-indigo-600 dark:text-indigo-400">My Notes</h2>
-                        <select id="tagFilter" class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-800 dark:text-white text-sm">
+        </aside>
+
+        <!-- Mobile overlay -->
+        <label for="sidebarToggle" class="fixed inset-0 z-30 bg-slate-900/50 backdrop-blur-sm lg:hidden peer-checked:opacity-0 pointer-events-none transition-opacity"></label>
+
+        <!-- Main Content -->
+        <main class="flex-1 min-w-0 p-6 lg:p-10">
+            <div class="max-w-4xl mx-auto space-y-8">
+
+                <!-- Welcome Section -->
+                <section class="text-center py-12 lg:py-16">
+                    <h1 class="text-4xl lg:text-5xl font-bold tracking-tight text-slate-900 dark:text-white mb-4">
+                        Personal Knowledge Base
+                    </h1>
+                    <p class="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto mb-8">
+                        Capture, organize, and retrieve your notes with powerful search and markdown support.
+                    </p>
+
+                    <div class="flex flex-wrap justify-center gap-3">
+                        <button id="quickAddBtn" class="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors shadow-sm">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                            New Note
+                        </button>
+                        <button id="importBtn" class="inline-flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded-lg font-medium hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors shadow-sm">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                            Import
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Notes Grid -->
+                <section>
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-slate-900 dark:text-white">Recent Notes</h2>
+                        <select id="tagFilter" class="px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
                             <option value="">All Tags</option>
                         </select>
                     </div>
-                    <div class="notes-grid grid gap-4" id="notesGrid">
-                        <div class="note-card bg-indigo-50 dark:bg-gray-700 border-l-4 border-indigo-500 p-4 rounded-lg hover:shadow-md transition-shadow">
-                            <h3 class="text-lg font-semibold text-indigo-900 dark:text-indigo-100 mb-2">Welcome to Your Knowledge Base</h3>
-                            <div class="note-content text-gray-600 dark:text-gray-300 mb-3"></div>
-                            <div class="note-tags flex flex-wrap gap-2 mb-2"></div>
-                            <button class="edit-btn mt-2 bg-indigo-600 dark:bg-indigo-500 text-white px-3 py-1 rounded hover:bg-indigo-700 dark:hover:bg-indigo-600 text-sm" onclick="knowledgeBase.editNote('welcome')">Edit</button>
-                        </div>
+
+                    <div class="notes-grid grid gap-5 sm:grid-cols-2 lg:grid-cols-3" id="notesGrid">
+                        <!-- Notes will be rendered here -->
                     </div>
-                </div>
-            </section>
-            
-            <section>
-                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 transition-colors">
-                    <h2 class="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mb-4">Add New Note</h2>
-                    <form id="addNoteForm" class="space-y-4">
-                        <input type="text" id="noteTitle" placeholder="Note title" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white dark:placeholder-gray-400">
-                        <input type="text" id="noteTags" placeholder="Tags (comma separated)" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white dark:placeholder-gray-400">
-                        <textarea id="noteContent" placeholder="Note content (Markdown supported)" rows="5" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"></textarea>
-                        <button type="submit" class="w-full bg-indigo-600 dark:bg-indigo-500 text-white py-2 rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors font-semibold">Add Note</button>
-                    </form>
-                </div>
-            </section>
+
+                    <!-- Empty state -->
+                    <div id="emptyState" class="hidden text-center py-16">
+                        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 mb-4">
+                            <svg class="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        </div>
+                        <h3 class="text-lg font-medium text-slate-900 dark:text-white mb-2">No notes yet</h3>
+                        <p class="text-slate-600 dark:text-slate-400 mb-6">Create your first note to get started.</p>
+                        <button id="emptyAddBtn" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors">Create Note</button>
+                    </div>
+                </section>
+            </div>
         </main>
     </div>
-    
+
     <!-- Hidden file input for import -->
     <input type="file" id="importFileInput" accept=".json,.md,.txt" class="hidden">
-    
+
+    <!-- Note Modal (for editing/creating) -->
+    <div id="noteModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+                <h3 class="text-lg font-semibold text-slate-900 dark:text-white" id="modalTitle">New Note</h3>
+                <button id="closeModal" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-6 space-y-4">
+                <input type="text" id="modalNoteTitle" placeholder="Note title" class="w-full px-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-slate-700 dark:text-white dark:placeholder-slate-400 text-lg font-medium">
+                <input type="text" id="modalNoteTags" placeholder="Tags (comma separated)" class="w-full px-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-slate-700 dark:text-white dark:placeholder-slate-400">
+                <textarea id="modalNoteContent" placeholder="Note content (Markdown supported)" rows="12" class="w-full px-4 py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-slate-700 dark:text-white dark:placeholder-slate-400 font-mono text-sm leading-relaxed resize-none"></textarea>
+                <div class="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
+                    <span id="charCount">0 characters</span>
+                    <span class="flex items-center gap-2">
+                        <span class="px-2 py-1 bg-slate-100 dark:bg-slate-700 rounded text-xs font-mono">Markdown</span>
+                    </span>
+                </div>
+            </div>
+            <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+                <button id="cancelModal" class="px-4 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg font-medium transition-colors">Cancel</button>
+                <button id="saveNote" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors shadow-sm">Save Note</button>
+            </div>
+        </div>
+    </div>
+
     <script src="app.js"></script>
 </body>
 </html>
