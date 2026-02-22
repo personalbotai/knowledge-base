@@ -1,10 +1,11 @@
 const CACHE_NAME = 'knowledge-base-v1';
 const ASSETS_TO_CACHE = [
-  '/knowledge-base/',
-  '/knowledge-base/index.html',
-  '/knowledge-base/styles.css',
-  '/knowledge-base/app.js',
-  '/knowledge-base/manifest.json'
+  '/',
+  '/index.html',
+  '/styles.css',
+  '/app.js',
+  '/manifest.json',
+  '/tailwind.css'
 ];
 
 // Install event - cache assets

@@ -6,13 +6,17 @@ const knowledgeBase = {
     init() {
         this.loadDarkMode();
         this.notes = this.loadNotes();
-        this.index = this.buildIndex();
+        this._memoryNotes = this.notes; // backup in memory
+        this.index = null;
+        this._rebuildIndexTimeout = null;
         this.setupEventListeners();
         this.renderNotes();
         this.updateTagFilter();
         this.setupKeyboardShortcuts();
         this.registerServiceWorker();
         this.setupInstallPrompt();
+        // Initial index build with debounce
+        this.debouncedRebuildIndex();
     },
     
     setupInstallPrompt() {
@@ -57,7 +61,7 @@ const knowledgeBase = {
     registerServiceWorker() {
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/knowledge-base/sw.js')
+                navigator.serviceWorker.register('./sw.js')
                     .then(reg => {
                         console.log('Service Worker registered:', reg);
                         // Check for updates every 6 hours
@@ -165,35 +169,78 @@ const knowledgeBase = {
     },
     
     loadNotes() {
-        const stored = localStorage.getItem('knowledgeBaseNotes');
-        return stored ? JSON.parse(stored) : [];
+        try {
+            const stored = localStorage.getItem('knowledgeBaseNotes');
+            return stored ? JSON.parse(stored) : [];
+        } catch (e) {
+            console.warn('localStorage unavailable, using memory storage:', e);
+            // Return from memory if available, otherwise empty array
+            return this._memoryNotes || [];
+        }
     },
     
     saveNotes() {
-        localStorage.setItem('knowledgeBaseNotes', JSON.stringify(this.notes));
+        try {
+            localStorage.setItem('knowledgeBaseNotes', JSON.stringify(this.notes));
+            this._memoryNotes = this.notes; // backup in memory
+        } catch (e) {
+            console.warn('localStorage write failed, storing in memory only:', e);
+            this._memoryNotes = this.notes;
+        }
+    },
+    
+    debouncedRebuildIndex() {
+        if (this._rebuildIndexTimeout) {
+            clearTimeout(this._rebuildIndexTimeout);
+        }
+        this._rebuildIndexTimeout = setTimeout(() => {
+            this.index = this.buildIndex();
+        }, 500); // Wait 500ms after last change
     },
     
     buildIndex() {
         if (this.notes.length === 0) return null;
         
-        const idx = lunr(function () {
-            this.ref('id');
-            this.field('title');
-            this.field('content');
-            this.field('tags');
-            
-            this.notes.forEach(note => this.add(note));
-        });
-        return idx;
+        try {
+            const idx = lunr(function () {
+                this.ref('id');
+                this.field('title');
+                this.field('content');
+                this.field('tags');
+                
+                this.notes.forEach(note => this.add(note));
+            });
+            return idx;
+        } catch (e) {
+            console.error('Failed to build lunr index:', e);
+            return null;
+        }
     },
     
     addNote() {
         const title = document.getElementById('noteTitle').value.trim();
         const content = document.getElementById('noteContent').value.trim();
         const tagsInput = document.getElementById('noteTags').value.trim();
+        
+        // Validation
+        if (!title) {
+            this.showMessage('Please enter a title', 'error');
+            return;
+        }
+        if (!content) {
+            this.showMessage('Please enter some content', 'error');
+            return;
+        }
+        if (title.length > 200) {
+            this.showMessage('Title is too long (max 200 characters)', 'error');
+            return;
+        }
+        if (content.length > 10000) {
+            this.showMessage('Content is too long (max 10000 characters)', 'error');
+            return;
+        }
+        
         const tags = tagsInput ? tagsInput.split(',').map(t => t.trim().toLowerCase()).filter(t => t) : [];
-
-        if (!title || !content) return;
 
         // Process note linking: [[note title]] -> link
         const processedContent = this.processNoteLinking(content);
@@ -209,7 +256,7 @@ const knowledgeBase = {
 
         this.notes.unshift(newNote);
         this.saveNotes();
-        this.index = this.buildIndex();
+        this.debouncedRebuildIndex();
         this.renderNotes();
         this.updateTagFilter();
         
@@ -317,6 +364,7 @@ const knowledgeBase = {
     
     filterByTag(tag) {
         document.getElementById('tagFilter').value = tag;
+        document.getElementById('searchInput').value = ''; // Reset search input
         if (!tag) {
             this.renderNotes();
             return;
@@ -343,8 +391,18 @@ const knowledgeBase = {
         const title = prompt('Edit title:', note.title);
         if (title === null) return;
         
+        if (title.length > 200) {
+            this.showMessage('Title is too long (max 200 characters)', 'error');
+            return;
+        }
+        
         const content = prompt('Edit content (Markdown):', note.content);
         if (content === null) return;
+        
+        if (content.length > 10000) {
+            this.showMessage('Content is too long (max 10000 characters)', 'error');
+            return;
+        }
         
         const tagsInput = prompt('Edit tags (comma separated):', note.tags.join(', '));
         const tags = tagsInput ? tagsInput.split(',').map(t => t.trim().toLowerCase()).filter(t => t) : [];
@@ -355,7 +413,7 @@ const knowledgeBase = {
         note.updatedAt = new Date().toISOString();
         
         this.saveNotes();
-        this.index = this.buildIndex();
+        this.debouncedRebuildIndex();
         this.renderNotes();
         this.updateTagFilter();
         
@@ -374,24 +432,44 @@ const knowledgeBase = {
     },
     
     showExportMenu() {
-        const options = [
-            { label: 'Export as JSON', action: () => this.exportJSON() },
-            { label: 'Export as Markdown', action: () => this.exportMarkdown() },
-            { label: 'Export as PDF', action: () => this.exportPDF() },
-        ];
+        // Create a simple modal dropdown
+        const modal = document.createElement('div');
+        modal.id = 'exportModal';
+        modal.innerHTML = `
+            <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="knowledgeBase.closeExportMenu(event)">
+                <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-xl max-w-sm w-full" onclick="event.stopPropagation()">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Export Notes</h3>
+                    <div class="space-y-2">
+                        <button id="exportJSON" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded transition-colors">Export as JSON</button>
+                        <button id="exportMarkdown" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded transition-colors">Export as Markdown</button>
+                        <button id="exportPDF" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded transition-colors">Export as PDF (Print)</button>
+                    </div>
+                    <button id="cancelExport" class="mt-4 w-full text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white font-medium py-2 px-4 transition-colors">Cancel</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
         
-        // Simple prompt-based menu (could be improved with custom dropdown)
-        const choice = prompt(
-            'Export options:\n' +
-            '1. JSON\n' +
-            '2. Markdown\n' +
-            '3. PDF (print)\n' +
-            'Enter number:'
-        );
-        
-        if (choice === '1') this.exportJSON();
-        else if (choice === '2') this.exportMarkdown();
-        else if (choice === '3') this.exportPDF();
+        // Add event listeners
+        document.getElementById('exportJSON').addEventListener('click', () => {
+            this.exportJSON();
+            this.closeExportMenu();
+        });
+        document.getElementById('exportMarkdown').addEventListener('click', () => {
+            this.exportMarkdown();
+            this.closeExportMenu();
+        });
+        document.getElementById('exportPDF').addEventListener('click', () => {
+            this.exportPDF();
+            this.closeExportMenu();
+        });
+        document.getElementById('cancelExport').addEventListener('click', () => this.closeExportMenu());
+    },
+    
+    closeExportMenu(event) {
+        if (event) event.stopPropagation();
+        const modal = document.getElementById('exportModal');
+        if (modal) modal.remove();
     },
     
     exportJSON() {
@@ -467,28 +545,88 @@ const knowledgeBase = {
     },
     
     parseMarkdownImport(content) {
-        // Parse markdown files with optional frontmatter or simple headers
+        // More robust markdown parser with support for:
+        // - Headers (# Title)
+        // - YAML frontmatter (optional)
+        // - Tags in various formats: "Tags: tag1, tag2" or "#tag1 #tag2"
         const notes = [];
-        const blocks = content.split(/\n---\n/);
+        
+        // Try to split by horizontal rules (---) first
+        let blocks = content.split(/\n---\n/);
+        
+        // If no horizontal rules, try to split by double newlines
+        if (blocks.length === 1) {
+            blocks = content.split(/\n\s*\n\s*\n/);
+        }
         
         blocks.forEach(block => {
-            const lines = block.trim().split('\n');
-            if (lines.length >= 2 && lines[0].startsWith('# ')) {
-                const title = lines[0].substring(2).trim();
-                const body = lines.slice(1).join('\n').trim();
+            block = block.trim();
+            if (!block) return;
+            
+            let title = '';
+            let body = '';
+            let tags = [];
+            
+            // Check for YAML frontmatter
+            const frontmatterMatch = block.match(/^---\n([\s\S]*?)\n---\n/);
+            let contentBody = block;
+            
+            if (frontmatterMatch) {
+                const frontmatter = frontmatterMatch[1];
+                contentBody = block.substring(frontmatterMatch[0].length);
                 
-                // Extract tags if present (e.g., **Tags:** tag1, tag2)
-                let tags = [];
-                const tagMatch = body.match(/\*\*Tags:\*\*\s*(.+)/);
+                // Parse tags from frontmatter
+                const tagMatch = frontmatter.match(/tags:\s*(.+)/);
                 if (tagMatch) {
-                    tags = tagMatch[1].split(',').map(t => t.trim().toLowerCase());
-                    // Remove the tag line from content
-                    const contentWithoutTags = body.replace(/\*\*Tags:\*\*\s*.+\n?/, '').trim();
-                    notes.push({ title, content: contentWithoutTags, tags });
-                } else {
-                    notes.push({ title, content: body, tags: [] });
+                    tags = tagMatch[1].split(',').map(t => t.trim().toLowerCase()).filter(t => t);
                 }
             }
+            
+            // Extract title from first line that starts with #
+            const lines = contentBody.split('\n');
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (line.startsWith('# ')) {
+                    title = line.substring(2).trim();
+                    body = lines.slice(i + 1).join('\n').trim();
+                    break;
+                }
+            }
+            
+            // If no title found, use first non-empty line as title
+            if (!title) {
+                const firstLine = lines.find(l => l.trim());
+                if (firstLine) {
+                    title = firstLine.trim();
+                    body = lines.slice(lines.indexOf(firstLine) + 1).join('\n').trim();
+                } else {
+                    title = 'Untitled';
+                    body = contentBody;
+                }
+            }
+            
+            // Extract tags from body if not already found
+            if (tags.length === 0) {
+                // Look for "Tags: tag1, tag2"
+                const tagLineMatch = body.match(/\*\*Tags:\*\*\s*(.+)/);
+                if (tagLineMatch) {
+                    tags = tagLineMatch[1].split(',').map(t => t.trim().toLowerCase());
+                    body = body.replace(/\*\*Tags:\*\*\s*.+\n?/, '').trim();
+                }
+                
+                // Look for hashtags in content
+                const hashtagMatches = body.match(/#(\w+)/g);
+                if (hashtagMatches) {
+                    const hashtagTags = hashtagMatches.map(t => t.substring(1).toLowerCase());
+                    tags = [...new Set([...tags, ...hashtagTags])];
+                }
+            }
+            
+            notes.push({
+                title: title || 'Untitled',
+                content: body || '',
+                tags: tags
+            });
         });
         
         return notes;
@@ -506,18 +644,19 @@ const knowledgeBase = {
         URL.revokeObjectURL(url);
     },
     
-    showMessage(message) {
+    showMessage(message, type = 'success') {
         const oldMsg = document.querySelector('.message');
         if (oldMsg) oldMsg.remove();
 
         const msg = document.createElement('div');
         msg.className = 'message';
         msg.textContent = message;
+        const bgColor = type === 'error' ? '#ef4444' : '#28a745';
         msg.style.cssText = `
             position: fixed;
             top: 20px;
             right: 20px;
-            background: #28a745;
+            background: ${bgColor};
             color: white;
             padding: 12px 20px;
             border-radius: 8px;

@@ -389,6 +389,46 @@ html.dark #tagFilter {
     }
 }
 
+/* Install hint button */
+.install-hint {
+    margin-top: 15px;
+    display: inline-block;
+}
+
+.install-hint button {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3);
+}
+
+.install-hint button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(16, 185, 129, 0.4);
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+}
+
+.install-hint button:active {
+    transform: translateY(0);
+}
+
+/* Dark mode for install button */
+html.dark .install-hint button {
+    background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+    box-shadow: 0 4px 6px rgba(52, 211, 153, 0.3);
+}
+
+html.dark .install-hint button:hover {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    box-shadow: 0 6px 12px rgba(52, 211, 153, 0.4);
+}
+
 /* Note link styling */
 .note-link {
     text-decoration: underline;
