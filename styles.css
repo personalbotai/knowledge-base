@@ -1,7 +1,12 @@
+/* Base styles */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
 }
 
 body {
@@ -9,6 +14,12 @@ body {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     min-height: 100vh;
     color: #333;
+    transition: background 0.3s, color 0.3s;
+}
+
+html.dark body {
+    background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+    color: #e2e8f0;
 }
 
 .container {
@@ -24,12 +35,23 @@ header {
     margin-bottom: 30px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     text-align: center;
+    transition: background 0.3s;
+}
+
+html.dark header {
+    background: #2d3748;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
 }
 
 header h1 {
     color: #667eea;
     margin-bottom: 15px;
     font-size: 2.5em;
+    transition: color 0.3s;
+}
+
+html.dark header h1 {
+    color: #667eea; /* Keep same accent color */
 }
 
 #searchInput {
@@ -39,12 +61,33 @@ header h1 {
     border: 2px solid #e1e5e9;
     border-radius: 8px;
     font-size: 16px;
-    transition: border-color 0.3s;
+    transition: border-color 0.3s, background 0.3s, color 0.3s;
+}
+
+html.dark #searchInput {
+    background: #4a5568;
+    border-color: #4a5568;
+    color: #e2e8f0;
 }
 
 #searchInput:focus {
     outline: none;
     border-color: #667eea;
+}
+
+kbd {
+    font-family: monospace;
+    background: #f7f7f7;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    padding: 2px 5px;
+    font-size: 0.9em;
+}
+
+html.dark kbd {
+    background: #4a5568;
+    border-color: #718096;
+    color: #e2e8f0;
 }
 
 main {
@@ -53,22 +96,8 @@ main {
     gap: 30px;
 }
 
-.notes-section {
-    background: white;
-    padding: 25px;
-    border-radius: 10px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.notes-section h2 {
-    color: #667eea;
-    margin-bottom: 20px;
-    font-size: 1.8em;
-}
-
-.notes-grid {
-    display: grid;
-    gap: 20px;
+html.dark .note-card {
+    background: #4a5568;
 }
 
 .note-card {
@@ -76,7 +105,7 @@ main {
     padding: 20px;
     border-radius: 8px;
     border-left: 4px solid #667eea;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: transform 0.2s, box-shadow 0.2s, background 0.3s;
 }
 
 .note-card:hover {
@@ -88,35 +117,147 @@ main {
     color: #333;
     margin-bottom: 10px;
     font-size: 1.2em;
+    transition: color 0.3s;
 }
 
-.note-card p {
+html.dark .note-card h3 {
+    color: #e2e8f0;
+}
+
+.note-content {
     color: #666;
     line-height: 1.6;
+    margin-bottom: 1em;
+    transition: color 0.3s;
 }
 
-.edit-btn {
+html.dark .note-content {
+    color: #cbd5e0;
+}
+
+.note-content p {
+    margin-bottom: 0.5em;
+}
+
+.note-content h1, .note-content h2, .note-content h3, 
+.note-content h4, .note-content h5, .note-content h6 {
+    margin-top: 1em;
+    margin-bottom: 0.5em;
+    font-weight: 600;
+}
+
+.note-content code {
+    background: rgba(0,0,0,0.1);
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 0.9em;
+}
+
+html.dark .note-content code {
+    background: rgba(255,255,255,0.1);
+}
+
+.note-content pre {
+    background: rgba(0,0,0,0.1);
+    padding: 1em;
+    border-radius: 5px;
+    overflow-x: auto;
+    margin: 1em 0;
+}
+
+html.dark .note-content pre {
+    background: rgba(0,0,0,0.3);
+}
+
+.note-content blockquote {
+    border-left: 4px solid #667eea;
+    padding-left: 1em;
+    margin: 1em 0;
+    color: #666;
+    font-style: italic;
+}
+
+html.dark .note-content blockquote {
+    color: #a0aec0;
+}
+
+.note-content ul, .note-content ol {
+    margin-left: 1.5em;
+    margin-bottom: 1em;
+}
+
+.note-content li {
+    margin-bottom: 0.25em;
+}
+
+.note-tags {
+    margin-bottom: 0.5em;
+}
+
+.note-tags span {
+    display: inline-block;
+    padding: 4px 8px;
     background: #667eea;
     color: white;
+    border-radius: 12px;
+    font-size: 0.8em;
+    margin-right: 5px;
+    margin-bottom: 5px;
+}
+
+.note-card .edit-btn,
+.note-card .delete-btn {
     border: none;
     padding: 8px 16px;
     border-radius: 4px;
     cursor: pointer;
     margin-top: 10px;
+    margin-right: 5px;
     font-size: 14px;
+    transition: background 0.2s;
 }
 
+.note-card .delete-btn {
+    background: #ef4444;
+}
+
+.note-card .delete-btn:hover {
+    background: #dc2626;
+}
+
+.note-card .text-xs {
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
+html.dark .note-card .text-xs {
+    color: #9ca3af;
+}
+
+/* Add Note Form */
 .add-section {
     background: white;
     padding: 25px;
     border-radius: 10px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: background 0.3s;
+}
+
+html.dark .add-section {
+    background: #2d3748;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
 }
 
 .add-section h2 {
     color: #667eea;
     margin-bottom: 20px;
     font-size: 1.8em;
+    transition: color 0.3s;
+}
+
+html.dark .add-section h2 {
+    color: #667eea;
 }
 
 #addNoteForm {
@@ -126,16 +267,26 @@ main {
 }
 
 #addNoteForm input,
-#addNoteForm textarea {
+#addNoteForm textarea,
+#tagFilter {
     padding: 12px;
     border: 2px solid #e1e5e9;
     border-radius: 8px;
     font-size: 16px;
-    transition: border-color 0.3s;
+    transition: border-color 0.3s, background 0.3s, color 0.3s;
+}
+
+html.dark #addNoteForm input,
+html.dark #addNoteForm textarea,
+html.dark #tagFilter {
+    background: #4a5568;
+    border-color: #4a5568;
+    color: #e2e8f0;
 }
 
 #addNoteForm input:focus,
-#addNoteForm textarea:focus {
+#addNoteForm textarea:focus,
+#tagFilter:focus {
     outline: none;
     border-color: #667eea;
 }
@@ -156,6 +307,23 @@ main {
     background: #5a6fd8;
 }
 
+/* Message Toast */
+.message {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Empty State */
 .empty-state {
     text-align: center;
     color: #999;
@@ -170,4 +338,59 @@ main {
 .empty-state p {
     font-size: 1.1em;
     line-height: 1.6;
+}
+
+/* Print styles for PDF export */
+@media print {
+    body {
+        background: white;
+        color: black;
+    }
+    header, .add-section, button, #searchInput, #tagFilter {
+        display: none !important;
+    }
+    main {
+        display: block;
+    }
+    .notes-section {
+        box-shadow: none;
+        padding: 0;
+    }
+    .note-card {
+        break-inside: avoid;
+        border: 1px solid #ddd;
+        margin-bottom: 1em;
+        page-break-inside: avoid;
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    main {
+        grid-template-columns: 1fr;
+    }
+    
+    header h1 {
+        font-size: 2em;
+    }
+    
+    #searchInput {
+        max-width: 100%;
+    }
+    
+    .note-card {
+        padding: 15px;
+    }
+    
+    .note-card .edit-btn,
+    .note-card .delete-btn {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+}
+
+/* Note link styling */
+.note-link {
+    text-decoration: underline;
+    cursor: pointer;
 }
