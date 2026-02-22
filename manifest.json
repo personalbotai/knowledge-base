@@ -1,0 +1,24 @@
+{
+  "name": "Simple Knowledge Base",
+  "short_name": "KnowledgeBase",
+  "description": "A simple, offline-capable knowledge base with markdown support",
+  "start_url": "/knowledge-base/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -11,6 +11,63 @@ const knowledgeBase = {
         this.renderNotes();
         this.updateTagFilter();
         this.setupKeyboardShortcuts();
+        this.registerServiceWorker();
+        this.setupInstallPrompt();
+    },
+    
+    setupInstallPrompt() {
+        let deferredPrompt;
+        
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            
+            // Show install button or hint
+            const existingHint = document.querySelector('.install-hint');
+            if (existingHint) existingHint.remove();
+            
+            const hint = document.createElement('div');
+            hint.className = 'install-hint';
+            hint.innerHTML = `
+                <button id="installBtn" class="mt-4 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm font-semibold">
+                    📱 Install App
+                </button>
+            `;
+            document.querySelector('header').appendChild(hint);
+            
+            document.getElementById('installBtn').addEventListener('click', async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    console.log('User response:', outcome);
+                    deferredPrompt = null;
+                    hint.remove();
+                }
+            });
+        });
+        
+        // Hide install hint if app is already installed
+        window.addEventListener('appinstalled', () => {
+            console.log('PWA was installed');
+            const hint = document.querySelector('.install-hint');
+            if (hint) hint.remove();
+        });
+    },
+    
+    registerServiceWorker() {
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/knowledge-base/sw.js')
+                    .then(reg => {
+                        console.log('Service Worker registered:', reg);
+                        // Check for updates every 6 hours
+                        setInterval(() => {
+                            reg.update();
+                        }, 6 * 60 * 60 * 1000);
+                    })
+                    .catch(err => console.error('Service Worker registration failed:', err));
+            });
+        }
     },
     
     setupEventListeners() {
